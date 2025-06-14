@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { getNotificationSettings, updateNotificationSettings } from '../../services/settingsService';
 import Navbar from '../../components/Navbar';
 import FeatureErrorBoundary from '../../components/FeatureErrorBoundary';
 import ProtectedRoute from '../../components/ProtectedRoute';
@@ -10,6 +12,7 @@ import { Container, Heading, Text, Flex, Card, Button, Box, Tabs, Switch, RadioG
 
 export default function Settings() {
   const { user } = useAuth();
+  const { themeSettings: globalThemeSettings, updateTheme } = useTheme();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,30 +21,44 @@ export default function Settings() {
 
   // Notification settings
   const [notificationSettings, setNotificationSettings] = useState({
-    emailNotifications: true,
-    pushNotifications: true,
-    vetVisitReminders: true,
+    emailNotificationsEnabled: true,
+    pushNotificationsEnabled: true,
+    appointmentReminders: true,
     medicationReminders: true,
     vaccinationReminders: true,
     weightReminders: false,
     feedingReminders: false,
-    reminderLeadTime: '1_day',
+    reminderLeadTime: 24,
   });
 
-  // Theme settings
-  const [themeSettings, setThemeSettings] = useState({
+  // Local theme settings state (will be synced with global theme context)
+  const [localThemeSettings, setLocalThemeSettings] = useState({
     theme: 'light',
     accentColor: 'blue',
     fontSize: 'medium',
   });
 
-  // Check if user is authenticated
+  // Sync local theme settings with global theme settings
+  useEffect(() => {
+    if (globalThemeSettings) {
+      setLocalThemeSettings(prev => ({
+        ...prev,
+        ...globalThemeSettings
+      }));
+    }
+  }, [globalThemeSettings]);
+
+  // Fetch user settings when component mounts
   useEffect(() => {
     // Fetch user settings
     const fetchSettings = async () => {
+      setIsLoading(true);
+      setError('');
+
       try {
-        // In a real app, this would be an API call
-        // For now, we'll use default settings
+        // Fetch notification settings from API
+        const settings = await getNotificationSettings();
+        setNotificationSettings(settings);
         setIsLoading(false);
       } catch (err) {
         console.error('Error fetching settings:', err);
@@ -50,8 +67,10 @@ export default function Settings() {
       }
     };
 
-    fetchSettings();
-  }, [user, router]);
+    if (user) {
+      fetchSettings();
+    }
+  }, [user]);
 
   const handleNotificationChange = (id, value) => {
     setNotificationSettings(prev => ({
@@ -61,7 +80,7 @@ export default function Settings() {
   };
 
   const handleThemeChange = (id, value) => {
-    setThemeSettings(prev => ({
+    setLocalThemeSettings(prev => ({
       ...prev,
       [id]: value
     }));
@@ -73,9 +92,14 @@ export default function Settings() {
     setIsSaving(true);
 
     try {
-      // In a real app, this would be an API call to save notification settings
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Save notification settings to API
+      const response = await updateNotificationSettings(notificationSettings);
       setSuccess('Notification settings saved successfully');
+
+      // Update local state with the response from the server
+      if (response) {
+        setNotificationSettings(response);
+      }
     } catch (err) {
       console.error('Error saving notification settings:', err);
       setError('Failed to save notification settings. Please try again.');
@@ -90,14 +114,14 @@ export default function Settings() {
     setIsSaving(true);
 
     try {
-      // In a real app, this would be an API call to save theme settings
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setSuccess('Theme settings saved successfully');
+      // Update the theme in the global context (which will also save to API)
+      const result = await updateTheme(localThemeSettings);
 
-      // Apply theme changes
-      // This would typically update the theme context or localStorage
-      // For now, we'll just log the changes
-      console.log('Theme settings updated:', themeSettings);
+      if (result) {
+        setSuccess('Theme settings saved successfully');
+      } else {
+        setError('Failed to save theme settings. Please try again.');
+      }
     } catch (err) {
       console.error('Error saving theme settings:', err);
       setError('Failed to save theme settings. Please try again.');
@@ -148,8 +172,8 @@ export default function Settings() {
                           description="Receive notifications via email"
                           control={
                             <Switch
-                              checked={notificationSettings.emailNotifications}
-                              onCheckedChange={(checked) => handleNotificationChange('emailNotifications', checked)}
+                              checked={notificationSettings.emailNotificationsEnabled}
+                              onCheckedChange={(checked) => handleNotificationChange('emailNotificationsEnabled', checked)}
                             />
                           }
                         />
@@ -159,8 +183,8 @@ export default function Settings() {
                           description="Receive push notifications on your device"
                           control={
                             <Switch
-                              checked={notificationSettings.pushNotifications}
-                              onCheckedChange={(checked) => handleNotificationChange('pushNotifications', checked)}
+                              checked={notificationSettings.pushNotificationsEnabled}
+                              onCheckedChange={(checked) => handleNotificationChange('pushNotificationsEnabled', checked)}
                             />
                           }
                         />
@@ -173,8 +197,8 @@ export default function Settings() {
                           description="Get reminders for upcoming vet appointments"
                           control={
                             <Switch
-                              checked={notificationSettings.vetVisitReminders}
-                              onCheckedChange={(checked) => handleNotificationChange('vetVisitReminders', checked)}
+                              checked={notificationSettings.appointmentReminders}
+                              onCheckedChange={(checked) => handleNotificationChange('appointmentReminders', checked)}
                             />
                           }
                         />
@@ -228,30 +252,30 @@ export default function Settings() {
 
                         <Box>
                           <Text size="2" weight="bold" mb="2">Reminder Lead Time</Text>
-                          <Text size="2" color="gray" mb="2">How far in advance should we send reminders?</Text>
+                          <Text size="2" color="gray" mb="2">How many hours in advance should we send reminders?</Text>
                           <RadioGroup.Root
-                            value={notificationSettings.reminderLeadTime}
-                            onValueChange={(value) => handleNotificationChange('reminderLeadTime', value)}
+                            value={notificationSettings.reminderLeadTime.toString()}
+                            onValueChange={(value) => handleNotificationChange('reminderLeadTime', parseInt(value, 10))}
                           >
                             <Flex direction="column" gap="2">
                               <Text as="label" size="2">
                                 <Flex gap="2" align="center">
-                                  <RadioGroup.Item value="same_day" /> Same day
+                                  <RadioGroup.Item value="0" /> Same day (0 hours)
                                 </Flex>
                               </Text>
                               <Text as="label" size="2">
                                 <Flex gap="2" align="center">
-                                  <RadioGroup.Item value="1_day" /> 1 day before
+                                  <RadioGroup.Item value="24" /> 1 day before (24 hours)
                                 </Flex>
                               </Text>
                               <Text as="label" size="2">
                                 <Flex gap="2" align="center">
-                                  <RadioGroup.Item value="3_days" /> 3 days before
+                                  <RadioGroup.Item value="72" /> 3 days before (72 hours)
                                 </Flex>
                               </Text>
                               <Text as="label" size="2">
                                 <Flex gap="2" align="center">
-                                  <RadioGroup.Item value="1_week" /> 1 week before
+                                  <RadioGroup.Item value="168" /> 1 week before (168 hours)
                                 </Flex>
                               </Text>
                             </Flex>
@@ -276,7 +300,7 @@ export default function Settings() {
                       <Box>
                         <Text size="2" weight="bold" mb="2">Theme</Text>
                         <RadioGroup.Root
-                          value={themeSettings.theme}
+                          value={localThemeSettings.theme}
                           onValueChange={(value) => handleThemeChange('theme', value)}
                         >
                           <Flex direction="column" gap="2">
@@ -302,7 +326,7 @@ export default function Settings() {
                       <Box>
                         <Text size="2" weight="bold" mb="2">Accent Color</Text>
                         <RadioGroup.Root
-                          value={themeSettings.accentColor}
+                          value={localThemeSettings.accentColor}
                           onValueChange={(value) => handleThemeChange('accentColor', value)}
                         >
                           <Flex wrap="wrap" gap="2">
@@ -341,7 +365,7 @@ export default function Settings() {
                       <Box>
                         <Text size="2" weight="bold" mb="2">Font Size</Text>
                         <RadioGroup.Root
-                          value={themeSettings.fontSize}
+                          value={localThemeSettings.fontSize}
                           onValueChange={(value) => handleThemeChange('fontSize', value)}
                         >
                           <Flex direction="column" gap="2">

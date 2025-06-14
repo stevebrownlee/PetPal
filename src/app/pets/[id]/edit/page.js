@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../contexts/AuthContext';
-import { getPetById, updatePet } from '../../../../services/petService';
+import { getPetById, updatePet, uploadPetPhoto } from '../../../../services/petService';
 import Navbar from '../../../../components/Navbar';
 import ProtectedRoute from '../../../../components/ProtectedRoute';
 import FeatureErrorBoundary from '../../../../components/FeatureErrorBoundary';
+import ImageUpload from '../../../../components/ImageUpload';
 import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid, Select, TextArea } from '@radix-ui/themes';
 
 export default function EditPet() {
@@ -32,6 +33,9 @@ export default function EditPet() {
   const [isSaving, setIsSaving] = useState(false);
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const [photoUploadError, setPhotoUploadError] = useState('');
 
   useEffect(() => {
     const fetchPet = async () => {
@@ -91,17 +95,59 @@ export default function EditPet() {
     }));
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
+  const handleImageChange = (file) => {
     if (file) {
       setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+      // Preview is handled by the ImageUpload component
     }
   };
+
+  const handleClearImage = () => {
+    setImageFile(null);
+    setImagePreview('');
+  };
+
+  const handleUploadPhoto = async () => {
+    if (!imageFile) return;
+
+    setIsUploadingPhoto(true);
+    setPhotoUploadError('');
+    setUploadProgress('Uploading photo...');
+
+    try {
+      // Upload the photo
+      const result = await uploadPetPhoto(petId, imageFile);
+
+      // Update the preview with the returned URL
+      if (result.pet && result.pet.imageUrl) {
+        setImagePreview(result.pet.imageUrl);
+
+        // Update the pet data with the new image URL
+        setFormData(prev => ({
+          ...prev,
+          imageUrl: result.pet.imageUrl
+        }));
+      }
+
+      setUploadProgress('Photo uploaded successfully!');
+
+      // Clear the file after successful upload
+      setImageFile(null);
+    } catch (err) {
+      console.error('Error uploading photo:', err);
+      setPhotoUploadError('Failed to upload photo. Please try again.');
+      setUploadProgress('');
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  // Effect to trigger photo upload when a file is selected
+  useEffect(() => {
+    if (imageFile) {
+      handleUploadPhoto();
+    }
+  }, [imageFile]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -289,33 +335,18 @@ export default function EditPet() {
                   </Box>
 
                   <Box>
-                    <Text as="label" size="2" mb="1" htmlFor="petImage">
-                      Pet Photo
-                    </Text>
-                    <input
-                      type="file"
-                      id="petImage"
-                      accept="image/*"
-                      onChange={handleImageChange}
-                      style={{
-                        width: '100%',
-                        padding: '8px',
-                        border: '1px solid var(--gray-6)',
-                        borderRadius: 'var(--radius-2)'
-                      }}
+                    <ImageUpload
+                      label="Pet Photo"
+                      onImageChange={handleImageChange}
+                      previewUrl={imagePreview}
+                      isUploading={isUploadingPhoto}
+                      uploadProgress={uploadProgress}
+                      onClearImage={handleClearImage}
                     />
-                    {imagePreview && (
-                      <Box mt="2">
-                        <img
-                          src={imagePreview}
-                          alt="Pet preview"
-                          style={{
-                            maxWidth: '100%',
-                            maxHeight: '200px',
-                            borderRadius: 'var(--radius-2)'
-                          }}
-                        />
-                      </Box>
+                    {photoUploadError && (
+                      <Text color="red" size="2" mt="1">
+                        {photoUploadError}
+                      </Text>
                     )}
                   </Box>
 

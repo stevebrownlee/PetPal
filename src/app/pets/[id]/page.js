@@ -245,13 +245,18 @@ export default function PetDetails() {
                     <Flex direction="column" gap="4" p="4">
                       <Flex justify="between" align="center">
                         <Heading size="4">Health Records</Heading>
-                        <Button size="2" onClick={() => router.push(`/pets/${petId}/health-records/add`)}>
-                          Add Vet Visit
-                        </Button>
+                        <Flex gap="2">
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/health-records`)}>
+                            View All Records
+                          </Button>
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/health-records/add`)}>
+                            Add Vet Visit
+                          </Button>
+                        </Flex>
                       </Flex>
 
-                      {/* Placeholder for health records list */}
-                      <Text>No health records found. Add a vet visit to get started.</Text>
+                      {/* Brief summary of health records */}
+                      <Text>View your pet's vet visit history and health records.</Text>
                     </Flex>
                   </Card>
                 </Tabs.Content>
@@ -261,13 +266,20 @@ export default function PetDetails() {
                     <Flex direction="column" gap="4" p="4">
                       <Flex justify="between" align="center">
                         <Heading size="4">Vaccinations</Heading>
-                        <Button size="2" onClick={() => router.push(`/pets/${petId}/vaccinations/add`)}>
-                          Add Vaccination
-                        </Button>
+                        <Flex gap="2">
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/vaccinations`)}>
+                            View All Vaccinations
+                          </Button>
+                          {user?.role === 'Veterinarian' && (
+                            <Button size="2" onClick={() => router.push(`/pets/${petId}/vaccinations/add`)}>
+                              Add Vaccination
+                            </Button>
+                          )}
+                        </Flex>
                       </Flex>
 
-                      {/* Placeholder for vaccinations list */}
-                      <Text>No vaccinations found. Add a vaccination to get started.</Text>
+                      {/* Brief summary of vaccinations */}
+                      <Text>View your pet's vaccination history and upcoming due dates.</Text>
                     </Flex>
                   </Card>
                 </Tabs.Content>
@@ -277,13 +289,18 @@ export default function PetDetails() {
                     <Flex direction="column" gap="4" p="4">
                       <Flex justify="between" align="center">
                         <Heading size="4">Medications</Heading>
-                        <Button size="2" onClick={() => router.push(`/pets/${petId}/medications/add`)}>
-                          Add Medication
-                        </Button>
+                        <Flex gap="2">
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/medications`)}>
+                            View All Medications
+                          </Button>
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/medications/add`)}>
+                            Add Medication
+                          </Button>
+                        </Flex>
                       </Flex>
 
-                      {/* Placeholder for medications list */}
-                      <Text>No medications found. Add a medication to get started.</Text>
+                      {/* Brief summary of medications */}
+                      <Text>Manage your pet's medications to keep track of dosages, schedules, and reminders.</Text>
                     </Flex>
                   </Card>
                 </Tabs.Content>
@@ -293,13 +310,18 @@ export default function PetDetails() {
                     <Flex direction="column" gap="4" p="4">
                       <Flex justify="between" align="center">
                         <Heading size="4">Weight History</Heading>
-                        <Button size="2" onClick={() => router.push(`/pets/${petId}/weight/add`)}>
-                          Add Weight Record
-                        </Button>
+                        <Flex gap="2">
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/weight`)}>
+                            View All Weight Records
+                          </Button>
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/weight/add`)}>
+                            Add Weight Record
+                          </Button>
+                        </Flex>
                       </Flex>
 
-                      {/* Placeholder for weight history */}
-                      <Text>No weight records found. Add a weight record to get started.</Text>
+                      {/* Brief summary of weight history */}
+                      <Text>Track your pet's weight over time to monitor health and growth.</Text>
                     </Flex>
                   </Card>
                 </Tabs.Content>
@@ -309,9 +331,14 @@ export default function PetDetails() {
                     <Flex direction="column" gap="4" p="4">
                       <Flex justify="between" align="center">
                         <Heading size="4">Feeding Schedule</Heading>
-                        <Button size="2" onClick={() => router.push(`/pets/${petId}/feeding/edit`)}>
-                          Edit Feeding Schedule
-                        </Button>
+                        <Flex gap="2">
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/feeding`)}>
+                            View Feeding Schedule
+                          </Button>
+                          <Button size="2" onClick={() => router.push(`/pets/${petId}/feeding/add`)}>
+                            Add Feeding Time
+                          </Button>
+                        </Flex>
                       </Flex>
 
                       {/* Placeholder for feeding schedule */}

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Navbar from '../../../components/Navbar';
 import FeatureErrorBoundary from '../../../components/FeatureErrorBoundary';
 import { Container, Heading, Text, Flex, Card, TextField, Button, Box } from '@radix-ui/themes';
+import { requestPasswordReset } from '../../../services/authService';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -21,15 +22,18 @@ export default function ForgotPassword() {
     setIsLoading(true);
 
     try {
-      // This would typically call an API endpoint to send a password reset email
-      // For now, we'll just simulate a successful request
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the API to request a password reset
+      const response = await requestPasswordReset(email);
 
-      setSuccess(`Password reset link has been sent to ${email}. Please check your email.`);
-      setEmail(''); // Clear the form
+      if (response.success) {
+        setSuccess(response.message || `Password reset link has been sent to ${email}. Please check your email.`);
+        setEmail(''); // Clear the form
+      } else {
+        setError(response.message || 'Failed to send password reset email. Please try again.');
+      }
     } catch (err) {
       console.error('Password reset error:', err);
-      setError('Failed to send password reset email. Please try again.');
+      setError(err.message || 'Failed to send password reset email. Please try again.');
     } finally {
       setIsLoading(false);
     }

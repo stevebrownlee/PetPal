@@ -1,4 +1,4 @@
-import { get, post } from './apiService';
+import { get, post, put } from './apiService';
 
 // Register a new user
 export const register = async (userData) => {
@@ -26,9 +26,31 @@ export const getCurrentUser = async () => {
   }
 };
 
+// Update the user's profile
+export const updateUserProfile = async (profileData) => {
+  return put('/user/profile', profileData);
+};
+
+// Request a password reset email
+export const requestPasswordReset = async (email) => {
+  return post('/auth/forgot-password', { email });
+};
+
+// Reset password with token
+export const resetPassword = async (token, newPassword, confirmPassword) => {
+  return post('/auth/reset-password', {
+    token,
+    newPassword,
+    confirmPassword
+  });
+};
+
 export default {
   register,
   login,
   logout,
   getCurrentUser,
+  updateUserProfile,
+  requestPasswordReset,
+  resetPassword,
 };

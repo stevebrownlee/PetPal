@@ -2,19 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { useAuth } from '../../../../../contexts/AuthContext';
-import { getPetById } from '../../../../../services/petService';
-import { createHealthRecord } from '../../../../../services/healthRecordService';
-import ProtectedRoute from '../../../../../components/ProtectedRoute';
-import Navbar from '../../../../../components/Navbar';
-import FeatureErrorBoundary from '../../../../../components/FeatureErrorBoundary';
+import { useAuth } from '../../../../../../contexts/AuthContext';
+import { getPetById } from '../../../../../../services/petService';
+import { getMedicationById, updateMedication } from '../../../../../../services/medicationService';
+import ProtectedRoute from '../../../../../../components/ProtectedRoute';
+import Navbar from '../../../../../../components/Navbar';
+import FeatureErrorBoundary from '../../../../../../components/FeatureErrorBoundary';
 import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid, Select, TextArea, Checkbox } from '@radix-ui/themes';
 
-export default function AddMedication() {
+export default function EditMedication() {
   const { user } = useAuth();
   const router = useRouter();
   const params = useParams();
   const petId = params.id;
+  const medicationId = params.medicationId;
 
   const [pet, setPet] = useState(null);
   const [formData, setFormData] = useState({
@@ -22,7 +23,7 @@ export default function AddMedication() {
     dosage: '',
     dosageUnit: 'mg',
     frequency: '',
-    startDate: new Date().toISOString().split('T')[0],
+    startDate: '',
     endDate: '',
     prescribedBy: '',
     reason: '',
@@ -60,24 +61,77 @@ export default function AddMedication() {
     { value: 'custom', label: 'Custom' }
   ];
 
-  // Check if user is authenticated and fetch pet data
+  // Check if user is authenticated and fetch pet and medication data
   useEffect(() => {
-    const fetchPet = async () => {
+    const fetchData = async () => {
       try {
+        // Fetch pet details
         const petData = await getPetById(petId);
         setPet(petData);
+
+        // Fetch medication details
+        const medicationData = await getMedicationById(medicationId);
+
+        // Format dates for form inputs
+        const startDate = medicationData.startDate ? new Date(medicationData.startDate).toISOString().split('T')[0] : '';
+        const endDate = medicationData.endDate ? new Date(medicationData.endDate).toISOString().split('T')[0] : '';
+        const isOngoing = !medicationData.endDate;
+
+        // Parse reminder times from the API response
+        let reminderTimes = ['08:00'];
+        if (medicationData.reminderTime) {
+          // Handle single reminder time
+          reminderTimes = [medicationData.reminderTime.substring(0, 5)]; // Extract HH:MM from time string
+        } else if (medicationData.reminderTimes && Array.isArray(medicationData.reminderTimes)) {
+          // Handle multiple reminder times if the API returns them as an array
+          reminderTimes = medicationData.reminderTimes.map(time =>
+            typeof time === 'string' ? time.substring(0, 5) : '08:00'
+          );
+        }
+
+        // Set form data from medication
+        setFormData({
+          medicationName: medicationData.name || '',
+          dosage: medicationData.dosage?.replace(/[a-zA-Z]/g, '').trim() || '',
+          dosageUnit: extractDosageUnit(medicationData.dosage) || 'mg',
+          frequency: medicationData.frequency || '',
+          startDate,
+          endDate,
+          prescribedBy: medicationData.prescriber || '',
+          reason: medicationData.reason || '',
+          instructions: medicationData.instructions || '',
+          isOngoing,
+          reminders: medicationData.reminderEnabled || true,
+          reminderTimes,
+          notes: medicationData.notes || ''
+        });
       } catch (err) {
-        console.error('Error fetching pet details:', err);
-        setError('Failed to load pet details. Please try again.');
+        console.error('Error fetching data:', err);
+        setError('Failed to load data. Please try again.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (petId) {
-      fetchPet();
+    if (petId && medicationId) {
+      fetchData();
     }
-  }, [user, router, petId]);
+  }, [user, router, petId, medicationId]);
+
+  // Helper function to extract dosage unit from dosage string
+  const extractDosageUnit = (dosageString) => {
+    if (!dosageString) return 'mg';
+
+    // Try to match common units
+    for (const unit of dosageUnits) {
+      if (dosageString.toLowerCase().includes(unit.value.toLowerCase())) {
+        return unit.value;
+      }
+    }
+
+    // Default to mg if no match
+    return 'mg';
+  };
 
   const handleChange = (e) => {
     const { id, value, type, checked } = e.target;
@@ -126,33 +180,39 @@ export default function AddMedication() {
     try {
       // Prepare medication data
       const medicationData = {
-        ...formData,
-        petId,
-        recordType: 'MEDICATION',
-        // Convert dates to ISO format
+        name: formData.medicationName,
+        dosage: `${formData.dosage} ${formData.dosageUnit}`,
+        frequency: formData.frequency,
         startDate: new Date(formData.startDate).toISOString(),
-        endDate: formData.isOngoing ? null : (formData.endDate ? new Date(formData.endDate).toISOString() : null)
+        endDate: formData.isOngoing ? null : (formData.endDate ? new Date(formData.endDate).toISOString() : null),
+        prescriber: formData.prescribedBy,
+        reason: formData.reason,
+        instructions: formData.instructions,
+        notes: formData.notes,
+        reminderEnabled: formData.reminders,
+        reminderFrequency: 'Daily', // Default to daily reminders
+        reminderTime: formData.reminderTimes[0] // Use the first reminder time as the primary
       };
 
-      // Call API to create health record
-      const newRecord = await createHealthRecord(medicationData);
+      // Call API to update medication
+      await updateMedication(medicationId, medicationData);
 
-      // Redirect back to pet details page
-      router.push(`/pets/${petId}?tab=medications`);
+      // Redirect back to medications list
+      router.push(`/pets/${petId}/medications`);
     } catch (err) {
-      console.error('Error adding medication:', err);
-      setError('Failed to add medication. Please try again.');
+      console.error('Error updating medication:', err);
+      setError('Failed to update medication. Please try again.');
       setIsSaving(false);
     }
   };
 
-  const addMedicationContent = (
+  const editMedicationContent = (
     <>
       <Navbar />
       <Container size="2" py="9">
         <Card>
           <Flex direction="column" gap="5" p="4">
-            <Heading size="6" align="center">Add Medication for {pet?.name || 'Pet'}</Heading>
+            <Heading size="6" align="center">Edit Medication for {pet?.name || 'Pet'}</Heading>
 
             {error && (
               <Text color="red" size="2">
@@ -161,7 +221,7 @@ export default function AddMedication() {
             )}
 
             {isLoading ? (
-              <Text>Loading pet details...</Text>
+              <Text>Loading medication details...</Text>
             ) : (
               <form onSubmit={handleSubmit}>
                 <Flex direction="column" gap="4">
@@ -389,12 +449,12 @@ export default function AddMedication() {
 
                   <Flex gap="3" mt="4">
                     <Button type="submit" disabled={isSaving}>
-                      {isSaving ? 'Saving...' : 'Save Medication'}
+                      {isSaving ? 'Saving...' : 'Update Medication'}
                     </Button>
                     <Button
                       type="button"
                       variant="soft"
-                      onClick={() => router.push(`/pets/${petId}`)}
+                      onClick={() => router.push(`/pets/${petId}/medications`)}
                     >
                       Cancel
                     </Button>
@@ -410,8 +470,8 @@ export default function AddMedication() {
 
   return (
     <ProtectedRoute>
-      <FeatureErrorBoundary featureName="AddMedication">
-        {addMedicationContent}
+      <FeatureErrorBoundary featureName="EditMedication">
+        {editMedicationContent}
       </FeatureErrorBoundary>
     </ProtectedRoute>
   );

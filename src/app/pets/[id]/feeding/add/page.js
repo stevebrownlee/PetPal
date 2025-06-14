@@ -4,26 +4,23 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { getPetById } from '../../../../../services/petService';
-import { getFeedingScheduleById, updateFeedingSchedule } from '../../../../../services/feedingService';
+import { createFeedingSchedule } from '../../../../../services/feedingService';
 import ProtectedRoute from '../../../../../components/ProtectedRoute';
 import Navbar from '../../../../../components/Navbar';
 import FeatureErrorBoundary from '../../../../../components/FeatureErrorBoundary';
 import { Container, Heading, Text, Flex, Card, TextField, Button, Box, Grid, Select, TextArea, Checkbox } from '@radix-ui/themes';
 
-export default function EditFeedingSchedule() {
+export default function AddFeedingSchedule() {
   const { user } = useAuth();
   const router = useRouter();
   const params = useParams();
   const petId = params.id;
-  const scheduleId = params.scheduleId;
 
   const [pet, setPet] = useState(null);
   const [formData, setFormData] = useState({
     feedingTime: '08:00',
     foodType: '',
-    customFoodType: '',
-    portionSize: '',
-    customPortion: '',
+    portion: '',
     notes: '',
     isActive: true
   });
@@ -57,82 +54,25 @@ export default function EditFeedingSchedule() {
     { value: 'custom', label: 'Custom Amount' }
   ];
 
-  // Check if user is authenticated and fetch pet and feeding schedule data
+  // Check if user is authenticated and fetch pet data
   useEffect(() => {
     const fetchData = async () => {
       try {
         // Fetch pet details
         const petData = await getPetById(petId);
         setPet(petData);
-
-        // Fetch feeding schedule details
-        const scheduleData = await getFeedingScheduleById(scheduleId);
-
-        // Format time for form input (HH:MM)
-        let formattedTime = '08:00';
-        if (scheduleData.feedingTime) {
-          // Extract HH:MM from time string (assuming format like "08:00:00")
-          formattedTime = scheduleData.feedingTime.substring(0, 5);
-        }
-
-        // Determine if food type is custom or from predefined list
-        let selectedFoodType = 'other';
-        let customFoodType = '';
-
-        if (scheduleData.foodType) {
-          // Check if the food type matches any predefined option
-          const matchedType = foodTypes.find(type =>
-            type.label.toLowerCase() === scheduleData.foodType.toLowerCase()
-          );
-
-          if (matchedType) {
-            selectedFoodType = matchedType.value;
-          } else {
-            selectedFoodType = 'other';
-            customFoodType = scheduleData.foodType;
-          }
-        }
-
-        // Determine if portion size is custom or from predefined list
-        let selectedPortionSize = 'custom';
-        let customPortion = '';
-
-        if (scheduleData.portion) {
-          // Check if the portion matches any predefined option
-          const matchedSize = portionSizes.find(size =>
-            size.label.toLowerCase() === scheduleData.portion.toLowerCase()
-          );
-
-          if (matchedSize) {
-            selectedPortionSize = matchedSize.value;
-          } else {
-            selectedPortionSize = 'custom';
-            customPortion = scheduleData.portion;
-          }
-        }
-
-        // Set form data from feeding schedule
-        setFormData({
-          feedingTime: formattedTime,
-          foodType: selectedFoodType,
-          customFoodType: customFoodType,
-          portionSize: selectedPortionSize,
-          customPortion: customPortion,
-          notes: scheduleData.notes || '',
-          isActive: scheduleData.isActive !== undefined ? scheduleData.isActive : true
-        });
       } catch (err) {
-        console.error('Error fetching data:', err);
-        setError('Failed to load data. Please try again.');
+        console.error('Error fetching pet data:', err);
+        setError('Failed to load pet data. Please try again.');
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (petId && scheduleId) {
+    if (petId) {
       fetchData();
     }
-  }, [user, router, petId, scheduleId]);
+  }, [user, router, petId]);
 
   const handleChange = (e) => {
     const { id, value, type, checked } = e.target;
@@ -160,6 +100,7 @@ export default function EditFeedingSchedule() {
 
       // Prepare feeding schedule data
       const scheduleData = {
+        petId: parseInt(petId),
         feedingTime: formattedTime,
         foodType: formData.foodType === 'other' && formData.customFoodType
           ? formData.customFoodType
@@ -171,25 +112,25 @@ export default function EditFeedingSchedule() {
         isActive: formData.isActive
       };
 
-      // Call API to update feeding schedule
-      await updateFeedingSchedule(scheduleId, scheduleData);
+      // Call API to create feeding schedule
+      await createFeedingSchedule(scheduleData);
 
       // Redirect back to feeding schedules list
       router.push(`/pets/${petId}/feeding`);
     } catch (err) {
-      console.error('Error updating feeding schedule:', err);
-      setError('Failed to update feeding schedule. Please try again.');
+      console.error('Error creating feeding schedule:', err);
+      setError('Failed to create feeding schedule. Please try again.');
       setIsSaving(false);
     }
   };
 
-  const editFeedingScheduleContent = (
+  const addFeedingScheduleContent = (
     <>
       <Navbar />
       <Container size="2" py="9">
         <Card>
           <Flex direction="column" gap="5" p="4">
-            <Heading size="6" align="center">Edit Feeding Schedule for {pet?.name || 'Pet'}</Heading>
+            <Heading size="6" align="center">Add Feeding Schedule for {pet?.name || 'Pet'}</Heading>
 
             {error && (
               <Text color="red" size="2">
@@ -198,7 +139,7 @@ export default function EditFeedingSchedule() {
             )}
 
             {isLoading ? (
-              <Text>Loading feeding schedule details...</Text>
+              <Text>Loading pet details...</Text>
             ) : (
               <form onSubmit={handleSubmit}>
                 <Flex direction="column" gap="4">
@@ -311,7 +252,7 @@ export default function EditFeedingSchedule() {
 
                   <Flex gap="3" mt="4">
                     <Button type="submit" disabled={isSaving}>
-                      {isSaving ? 'Saving...' : 'Update Feeding Schedule'}
+                      {isSaving ? 'Saving...' : 'Add Feeding Schedule'}
                     </Button>
                     <Button
                       type="button"
@@ -332,8 +273,8 @@ export default function EditFeedingSchedule() {
 
   return (
     <ProtectedRoute>
-      <FeatureErrorBoundary featureName="EditFeedingSchedule">
-        {editFeedingScheduleContent}
+      <FeatureErrorBoundary featureName="AddFeedingSchedule">
+        {addFeedingScheduleContent}
       </FeatureErrorBoundary>
     </ProtectedRoute>
   );

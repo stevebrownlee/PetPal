@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Navbar from '../../../components/Navbar';
 import FeatureErrorBoundary from '../../../components/FeatureErrorBoundary';
 import { Container, Heading, Text, Flex, Card, TextField, Button, Box } from '@radix-ui/themes';
+import { resetPassword } from '../../../services/authService';
 
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
@@ -26,15 +27,9 @@ export default function ResetPassword() {
         return;
       }
 
-      try {
-        // This would typically call an API endpoint to validate the token
-        // For now, we'll just simulate a valid token
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setTokenValid(true);
-      } catch (err) {
-        console.error('Token validation error:', err);
-        setError('Invalid or expired reset token. Please request a new password reset link.');
-      }
+      // For this implementation, we'll assume the token is valid if it exists
+      // The actual validation will happen when the user submits the form
+      setTokenValid(true);
     };
 
     validateToken();
@@ -51,19 +46,28 @@ export default function ResetPassword() {
       return;
     }
 
+    // Validate password strength
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
-      // This would typically call an API endpoint to reset the password
-      // For now, we'll just simulate a successful reset
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Call the API to reset the password
+      const response = await resetPassword(token, password, confirmPassword);
 
-      setSuccess('Password has been reset successfully. You can now log in with your new password.');
-      setPassword('');
-      setConfirmPassword('');
+      if (response.success) {
+        setSuccess(response.message || 'Password has been reset successfully. You can now log in with your new password.');
+        setPassword('');
+        setConfirmPassword('');
+      } else {
+        setError(response.message || 'Failed to reset password. Please try again.');
+      }
     } catch (err) {
       console.error('Password reset error:', err);
-      setError('Failed to reset password. Please try again.');
+      setError(err.message || 'Failed to reset password. Please try again.');
     } finally {
       setIsLoading(false);
     }

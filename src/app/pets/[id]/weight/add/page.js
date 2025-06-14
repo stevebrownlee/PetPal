@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '../../../../../contexts/AuthContext';
 import { getPetById } from '../../../../../services/petService';
-import { createHealthRecord } from '../../../../../services/healthRecordService';
+import { createWeight } from '../../../../../services/weightService';
 import Navbar from '../../../../../components/Navbar';
 import FeatureErrorBoundary from '../../../../../components/FeatureErrorBoundary';
 import ProtectedRoute from '../../components/ProtectedRoute';
@@ -84,18 +84,18 @@ export default function AddWeightRecord() {
     try {
       // Prepare weight record data
       const weightData = {
-        ...formData,
         petId,
-        recordType: 'WEIGHT',
-        // Convert date to ISO format
-        date: new Date(formData.date).toISOString()
+        weightValue: parseFloat(formData.weight),
+        weightUnit: formData.weightUnit,
+        date: new Date(formData.date).toISOString(),
+        notes: formData.notes
       };
 
-      // Call API to create health record
-      const newRecord = await createHealthRecord(weightData);
+      // Call API to create weight record
+      const newRecord = await createWeight(weightData);
 
-      // Redirect back to pet details page
-      router.push(`/pets/${petId}?tab=weight`);
+      // Redirect to weight history page
+      router.push(`/pets/${petId}/weight`);
     } catch (err) {
       console.error('Error adding weight record:', err);
       setError('Failed to add weight record. Please try again.');
